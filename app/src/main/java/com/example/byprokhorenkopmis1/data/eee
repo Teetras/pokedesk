@@ -1,0 +1,273 @@
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Attack
+import androidx.compose.material.icons.filled.Heart
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.navigate
+import androidx.navigation.compose.popUpTo
+import androidx.navigation.compose.rememberNavController
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            val navController = rememberNavController()
+            val pokemonList = remember {
+                mutableStateOf<List<PokemonCard>>(
+                    listOf(
+                        PokemonCard(name = "Leafeon", hp = 15, attack = 11),
+                        PokemonCard(name = "Le", hp = 13, attack = 12),
+                        PokemonCard(name = "Leaf", hp = 10, attack = 14),
+                        PokemonCard(name = "Feon", hp = 6, attack = 19),
+                    )
+                )
+            }
+
+            Byprokhorenkopmis1Theme {
+                NavHost(navController = navController, startDestination = "screen_1") {
+                    composable("screen_1") {
+                        ScreenCardList(navController = navController, pokemonList = pokemonList.value)
+                    }
+                    composable(
+                        "screen_2/{pokemonName}",
+                        arguments = listOf(navArgument("pokemonName") {
+                            type = NavType.StringType
+                        })
+                    ) {
+                        val pokemonName = remember {
+                            it.arguments?.getString("pokemonName")
+                        }
+                        ScreenInfo {
+                            navController.navigate("screen_1") {
+                                popUpTo("screen_1") {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class PokemonCard(
+    val name: String,
+    val hp: Int,
+    val attack: Int
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScreenCardList(navController: NavController, pokemonList: List<PokemonCard>) {
+    val showDialog = remember { mutableStateOf(false) }
+    val name = remember { mutableStateOf("") }
+    val hp = remember { mutableStateOf("") }
+    val attack = remember { mutableStateOf("") }
+
+    val bottomSheetState = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Row(
+            modifier = Modifier.padding(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Коллекция карточек",
+                fontSize = 20.sp
+            )
+            Spacer(modifier = Modifier.width(70.dp))
+            IconButton(onClick = { bottomSheetState.show() }) {
+                Icon(Icons.Default.Info, contentDescription = "Info")
+            }
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            LazyColumn {
+                items(pokemonList) { pokemon ->
+                    ListRow(name = pokemon.name, hp = pokemon.hp, attack = pokemon.attack)
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
+                .background(Color.White)
+        ) {
+            Button(
+                onClick = { showDialog.value = true },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Text(text = "Добавить")
+            }
+        }
+    }
+
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showDialog.value = false },
+            title = { Text(text = "Добавить покемона") },
+            text = {
+                Column {
+                    TextField(
+                        value = name.value,
+                        onValueChange = { name.value = it },
+                        label = { Text("Имя") }
+                    )
+                    TextField(
+                        value = hp.value,
+                        onValueChange = { hp.value = it },
+                        label = { Text("HP") }
+                    )
+                    TextField(
+                        value = attack.value,
+                        onValueChange = { attack.value= it },
+                        label = { Text("Атака") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (name.value.isNotBlank() && hp.value.isNotBlank() && attack.value.isNotBlank()) {
+                            val newPokemon = PokemonCard(
+                                name = name.value,
+                                hp = hp.value.toIntOrNull() ?: 0,
+                                attack = attack.value.toIntOrNull() ?: 0
+                            )
+
+                            pokemonList.toMutableStateList().add(newPokemon)
+
+                            showDialog.value = false
+                            name.value = ""
+                            hp.value = ""
+                            attack.value = ""
+                        }
+                    }
+                ) {
+                    Text("Добавить")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog.value = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
+    ModalBottomSheetLayout(
+        sheetState = bottomSheetState,
+        sheetContent = {
+            SheetContent(navController = navController, name = name.value, hp = hp.value, attack = attack.value)
+        }
+    ) {
+
+    }
+}
+
+@Composable
+fun SheetContent(navController: NavController, name: String, hp: String, attack: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 20.dp)
+    ) {
+        Text(text = "Редактирование покемона", fontSize = 18.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(value = name, onValueChange = { }, label = { Text("Имя") })
+        TextField(value = hp, onValueChange = { }, label = { Text("HP") })
+        TextField(value = attack, onValueChange = { }, label = { Text("Атака") })
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Button(
+                onClick = {
+                    // Perform update logic here
+                    navController.popBackStack()
+                }
+            ) {
+                Text(text = "Сохранить")
+            }
+        }
+    }
+}
+
+@Composable
+fun ListRow(name: String, hp: Int, attack: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp)
+            .clickable { Log.d("MyLog", "Clicked") },
+        shape = RoundedCornerShape(15.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 6.dp
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(Color(246, 246, 246), Color(160, 202, 192))
+                    )
+                )
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.riifia),
+                    contentDescription = "TV",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .padding(5.dp)
+                        .size(100.dp)
+                        .clip(CircleShape)
+                )
+                Column(modifier = Modifier.padding(5.dp)) {
+                    Text(text = name)
+                    Row {
+                        Icon(
+                            imageVector = Icons.Default.Heart,
+                            contentDescription = "hp",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(text = hp.toString())
+                    }
+                    Row {
+                        Icon(
+                            imageVector = Icons.Default.Attack,
+                            contentDescription = "attack",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(text = attack.toString())
+                    }
+                }
+            }
+        }
+    }
+}
